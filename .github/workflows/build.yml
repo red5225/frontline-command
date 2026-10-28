@@ -1,0 +1,48 @@
+name: Validate and package Godot project
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate region data
+        run: python3 tools/validate_data.py
+
+      - name: Install Godot 4
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.4.1
+          use-dotnet: false
+          include-templates: false
+
+      - name: Import and parse project
+        run: godot --headless --path . --editor --quit
+
+      - name: Smoke-run main scene
+        run: godot --headless --path . --quit-after 3
+
+      - name: Package source project
+        run: |
+          mkdir -p dist
+          zip -r dist/frontline-command-atlas-godot-project.zip \
+            project.godot scenes scripts data assets docs tools README.md LICENSE .gitignore
+
+      - name: Upload downloadable project ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontline-command-atlas-godot-project
+          path: dist/frontline-command-atlas-godot-project.zip
+          if-no-files-found: error
+          retention-days: 30
